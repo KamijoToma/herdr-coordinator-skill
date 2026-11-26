@@ -1,19 +1,20 @@
 # Herdr Coordinator
 
-由用户显式启用的协调技能。协调者用 Herdr Core 派发交互式执行者，记录任务依赖和文件归属，以交付证据验收，在会话恢复或接班后按稳定终端地址继续工作。
+一个由用户显式启用的多 Agent 协调技能。协调者通过 Herdr Core 安排有依赖的任务，把实现和验证交给交互式执行者，再按证据签收。任务记录和稳定终端地址支持会话恢复与接班。
 
 ## 安装
 
-需要 Herdr Core 的 `hc` 命令和一个已配置的交互式 agent 宿主。需要在桌面展示执行者时，可使用 Herdr.app。[Herdr Core](https://github.com/herdrdev/herdr-core) · [Herdr.app](https://github.com/herdrdev/herdr-app)
+准备 Herdr Core 的 `hc` 命令，以及已配置的 Oh My Pi 或 Claude Code。用 `hc --skill` 查看当前版本的命令。需要在桌面查看执行者时，可连接 Herdr.app。[Herdr Core](https://github.com/herdrdev/herdr-core) · [Herdr.app](https://github.com/herdrdev/herdr-app)
 
-将技能装进要协调的项目。把下方的 `repo` 和 `project` 换成实际绝对路径。以下以 Oh My Pi 为例。Claude Code 使用 `.claude/skills` 作为安装目录。
+克隆或下载本仓库，然后把技能复制到要协调的项目中。替换下面的两个绝对路径。Claude Code 用户将 `skill_root` 改为 `.claude/skills`。
 
 ```sh
 (
   set -eu
-  repo=/path/to/herdr-coordinator
+  repo=/path/to/herdr-coordinator-skill
   project=/path/to/your-project
-  dest="$project/.omp/skills/herdr-coordinator"
+  skill_root=.omp/skills
+  dest="$project/$skill_root/herdr-coordinator"
   mkdir -p "$(dirname "$dest")"
   mkdir "$dest"
   cp "$repo/SKILL.md" "$dest/"
@@ -21,21 +22,29 @@
 )
 ```
 
-安装命令要求目标技能目录尚不存在。已有同名副本时，先确认宿主将从哪个目录加载。
+目标技能目录须尚不存在。已有同名技能时，先检查宿主的加载位置，避免调用到旧版。
 
 ## 使用
 
-在项目目录内，从 Herdr Core 管理的交互式终端启动宿主。若从外部启动，可用 `hc run --bg --name coordinator --cwd "$project" -- omp`，再用 `hc attach` 连接返回的地址。Claude Code 用户将启动程序换成 `claude`。
+在 Herdr Core 管理的终端中打开项目并启动宿主。从外部终端启动时，以下命令会返回稳定终端地址。用 `hc attach` 连接该地址。Claude Code 用户将 `omp` 换成 `claude`。
+
+```sh
+hc run --bg --name coordinator --cwd "/path/to/your-project" -- omp
+```
+
+在宿主交互界面中调用技能，并附上任务或计划路径。
 
 | 宿主 | 输入示例 | 文档 |
 | --- | --- | --- |
 | Oh My Pi | `/skill:herdr-coordinator 协调 docs/export-plan.md 中的工作` | [Skills](https://github.com/can1357/oh-my-pi/blob/main/docs/skills.md) |
 | Claude Code | `/herdr-coordinator 协调 docs/export-plan.md 中的工作` | [Skills](https://code.claude.com/docs/en/skills) |
 
-Oh My Pi 的斜杠入口需要启用 `skills.enableSkillCommands`。也可直接告诉宿主读取 `herdr-coordinator` 技能并显式启用，附上真实目标或计划路径。没有指定模型时，沿用用户已有的交互式配置。接班时把工作记录目录的绝对路径交给继任协调者。
+Oh My Pi 的斜杠入口需要启用 `skills.enableSkillCommands`。也可以在提示中明确写「读取并启用 `herdr-coordinator`，协调 `docs/export-plan.md` 中的工作」。需要指定执行程序、模型或推理级别时，把它们写进同一条提示。
 
-[SKILL.md](SKILL.md) 定义协调流程。[工作记录模板](references/work-records.md) 提供任务单、状态和执行者摘要格式。
+协调者用 `brief.md` 记录目标、依赖和分工，用 `status.md` 记录回报地址与任务状态。执行者通过 `hc send` 回报摘要路径。恢复或换人时，把工作记录目录的绝对路径交给协调者，先核对在途任务及其地址，再继续派发。[协调流程](SKILL.md) · [工作记录模板](references/work-records.md)
 
-## 来源
+## 原始分享
 
-协调者角色的设计参考了 Tinyhost 的 Herdr Coordinator。这里的运行流程对应 Herdr Core 的 `hc`，具体命令以安装版本的 `hc --skill` 为准。[Herdr Coordinator 原始分享](https://tinyhost.space/herdr-coordinator/)
+> Tinyhost · 《Herdr Coordinator：一份“只协调、不执行”的多 Agent 编排提示词》。[原始分享与提示词全文](https://tinyhost.space/herdr-coordinator/)
+
+本仓库沿用了原文中的协调者分工思路，按 Herdr Core 的 `hc` 重新编写了派发、等待、签收和交接流程。公开发布前需确认改编内容的再分发授权和本仓库的许可证。
